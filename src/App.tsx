@@ -28,6 +28,7 @@ export default function App() {
   const [connectionStatus, setConnectionStatus] = useState<"idle" | "connecting" | "connected" | "disconnected">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
 
   // Floating reactions list
   interface FloatingReact {
@@ -42,6 +43,14 @@ export default function App() {
 
   // Parse direct shared links on mount if already joining
   const [isPreJoinCode, setIsPreJoinCode] = useState("");
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => {
+      setToast(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -85,6 +94,8 @@ export default function App() {
           // Update URL bar silently to support direct room code copying without hard reloading
           const newUrl = `${window.location.origin}?room=${data.room.code}`;
           window.history.pushState({}, "", newUrl);
+        } else if (type === "toast") {
+          setToast({ message: data.message, type: data.toastType || "info" });
         } else if (type === "error") {
           setErrorMsg(data.message);
           setConnectionStatus("idle");
@@ -302,6 +313,25 @@ export default function App() {
           </div>
         )
       )}
+
+      {/* Floating Toast notification toast system */}
+      <div className="fixed bottom-6 right-6 z-[100] pointer-events-none">
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15, transition: { duration: 0.2 } }}
+              className="pointer-events-auto flex items-center gap-3 px-5 py-3.5 bg-neutral-900 border border-purple-500/30 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-w-sm"
+            >
+              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse shrink-0" />
+              <p className="text-xs font-semibold text-neutral-200 tracking-wide font-sans leading-relaxed">
+                {toast.message}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -469,6 +469,35 @@ wss.on("connection", (ws: WebSocket) => {
             break;
           }
 
+          // Check if same song is already in the queue or is currently playing
+          const existingInQueue = room.queue.find(t => t.youtubeId === track.youtubeId);
+          const isCurrentlyPlaying = room.currentTrack?.youtubeId === track.youtubeId;
+
+          if (existingInQueue) {
+            const alreadyVoted = existingInQueue.addedBy === userId || existingInQueue.upvotes.includes(userId);
+            if (alreadyVoted) {
+              ws.send(JSON.stringify({
+                type: "toast",
+                message: "You already voted for this music.",
+                toastType: "error"
+              }));
+            } else {
+              ws.send(JSON.stringify({
+                type: "toast",
+                message: "That same song is already in queue.",
+                toastType: "info"
+              }));
+            }
+            break;
+          } else if (isCurrentlyPlaying) {
+            ws.send(JSON.stringify({
+              type: "toast",
+              message: "That same song is already playing.",
+              toastType: "info"
+            }));
+            break;
+          }
+
           const id = Math.random().toString(36).substr(2, 9);
           const newTrack: Track = {
             id,
