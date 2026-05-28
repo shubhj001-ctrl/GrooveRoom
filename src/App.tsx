@@ -128,7 +128,12 @@ export default function App() {
 
     ws.onerror = (e) => {
       console.error("WS general link error:", e);
-      setErrorMsg("Failed to establish websocket link connectivity on port 3000.");
+      const isServerless = window.location.hostname.includes("vercel") || window.location.hostname.includes("netlify") || window.location.hostname.includes("github.io");
+      if (isServerless) {
+        setErrorMsg("WebSockets are not natively supported by Vercel/Netlify's serverless runtime. Please host GrooveRoom on a persistent container platform like Render.com, Railway.app, or Google Cloud Run.");
+      } else {
+        setErrorMsg("Failed to establish WebSocket connection. Ensure your Node.js dynamic server (server.ts) is running on port 3000, or deploy to a standard container-based host.");
+      }
       setConnectionStatus("idle");
     };
   };

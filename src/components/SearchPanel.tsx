@@ -1,29 +1,20 @@
 import React, { useState } from "react";
-import { Search, Sparkles, Plus, Loader2, Music, Copy, Link } from "lucide-react";
+import { Search, Plus, Loader2, Link } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface SearchPanelProps {
   onAddTrack: (track: { title: string; artist: string; youtubeId: string; duration: number; thumbnail: string }) => void;
 }
 
-type SearchMode = "search" | "ai" | "url";
-
-interface Suggestion {
-  title: string;
-  artist: string;
-  suggestedSearch: string;
-  reason: string;
-}
+type SearchMode = "search" | "url";
 
 export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
   const [mode, setMode] = useState<SearchMode>("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [directUrl, setDirectUrl] = useState("");
-  const [aiPrompt, setAiPrompt] = useState("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [aiSuggestions, setAiSuggestions] = useState<Suggestion[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
   // Helper: Parses YouTube URL to extract Video ID
@@ -89,74 +80,6 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
     setDirectUrl("");
   };
 
-  // 3. AI music suggestions (Gemini)
-  const handleAiSuggest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!aiPrompt.trim()) return;
-
-    setIsLoading(true);
-    setErrorMsg("");
-    setAiSuggestions([]);
-
-    try {
-      const resp = await fetch("/api/ai/suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt })
-      });
-      if (!resp.ok) {
-        throw new Error("AI Recommendation limits reached or server failed.");
-      }
-      const data = await resp.json();
-      setAiSuggestions(data.recommendations || []);
-    } catch (err: any) {
-      setErrorMsg(err.message || "AI Suggestion retrieval failed.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // AI Suggest helper: automatically runs a YouTube keyword scrape on the server inside one single step!
-  const handleResolveAndAddAiTrack = async (item: Suggestion, idx: number) => {
-    setIsLoading(true);
-    setErrorMsg("");
-    try {
-      const searchQueryString = item.suggestedSearch || `${item.title} ${item.artist}`;
-      const searchResp = await fetch(`/api/search?q=${encodeURIComponent(searchQueryString)}`);
-      
-      if (!searchResp.ok) throw new Error("Search resolution failed.");
-      const searchData = await searchResp.json();
-      
-      if (searchData.results && searchData.results.length > 0) {
-        const selected = searchData.results[0]; // grab top search match!
-        onAddTrack({
-          title: item.title,
-          artist: item.artist,
-          youtubeId: selected.youtubeId,
-          duration: selected.duration,
-          thumbnail: selected.thumbnail
-        });
-        
-        // Remove item from AI suggestions on success
-        setAiSuggestions(prev => prev.filter((_, i) => i !== idx));
-      } else {
-        // Fallback injection if search returned empty
-        onAddTrack({
-          title: item.title,
-          artist: item.artist,
-          youtubeId: "jfKfPfyJRdk", // fallback
-          duration: 180,
-          thumbnail: "https://img.youtube.com/vi/jfKfPfyJRdk/mqdefault.jpg"
-        });
-        setAiSuggestions(prev => prev.filter((_, i) => i !== idx));
-      }
-    } catch (err) {
-      setErrorMsg("Failed to automatically link the AI track to YouTube.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="bg-neutral-900 border border-neutral-800 rounded-2xl flex flex-col p-5 font-sans relative">
       
@@ -170,16 +93,6 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
         >
           <Search className="w-3.5 h-3.5" />
           <span>Keyword Search</span>
-        </button>
-
-        <button
-          onClick={() => { setMode("ai"); setErrorMsg(""); }}
-          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-            mode === "ai" ? "bg-purple-600/15 border border-purple-500/30 text-purple-400 font-bold" : "text-neutral-500 hover:text-neutral-300 border border-transparent"
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-          <span>Gemini AI Suggest</span>
         </button>
 
         <button
@@ -280,63 +193,6 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
               💡 Supports standard links (e.g. <span className="text-neutral-400">https://www.youtube.com/watch?v=dQw4w9WgXcQ</span>) or simple shorts & watch ids (e.g. <span className="text-neutral-400">dQw4w9WgXcQ</span>).
             </p>
           </form>
-        )}
-
-        {/* 3. AI suggestions (Gemini) */}
-        {mode === "ai" && (
-          <div className="space-y-4">
-            <form onSubmit={handleAiSuggest} className="flex gap-2">
-              <input
-                type="text"
-                required
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                placeholder="Prompt AI: e.g. 'moody lo-fi hip hop for code writing', 'top 80s synth'"
-                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
-              />
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="bg-purple-600 hover:bg-purple-500 text-white py-2.5 px-4 rounded-xl text-xs font-semibold shrink-0 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
-              >
-                {isLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="w-3.5 h-3.5 text-white fill-white animate-pulse" />
-                )}
-                <span>Ask AI</span>
-              </button>
-            </form>
-
-            {/* List AI returned ideas */}
-            <div className="max-h-56 overflow-y-auto space-y-3 pr-1">
-              {aiSuggestions.length > 0 ? (
-                aiSuggestions.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 bg-neutral-950 border border-purple-500/10 rounded-xl shadow-inner relative flex flex-col items-start gap-2 text-left"
-                  >
-                    <div>
-                      <h4 className="text-xs font-semibold text-neutral-200">{item.title}</h4>
-                      <p className="text-[10px] text-neutral-500">{item.artist}</p>
-                      <p className="text-[10px] text-neutral-400 italic mt-1 bg-neutral-900/40 p-2 rounded border border-neutral-800/40 leading-relaxed font-light">
-                        "{item.reason}"
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => handleResolveAndAddAiTrack(item, idx)}
-                      disabled={isLoading}
-                      className="self-end p-1.5 px-3 bg-purple-600/15 border border-purple-500/30 hover:bg-purple-500 hover:text-white text-purple-400 rounded-lg text-[10px] font-mono leading-none transition-all flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3" /> Auto Search & Add
-                    </button>
-                  </div>
-                ))
-              ) : aiPrompt && !isLoading ? (
-                <p className="text-[11px] text-neutral-500 text-center py-6 font-mono">Input prompt to receive custom Gemini music selections.</p>
-              ) : null}
-            </div>
-          </div>
         )}
       </div>
     </div>

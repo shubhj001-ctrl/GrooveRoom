@@ -3,7 +3,6 @@ import http from "http";
 import path from "path";
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type } from "@google/genai";
 import * as dotenv from "dotenv";
 
 dotenv.config();
@@ -16,27 +15,6 @@ const PORT = 3000;
 const server = http.createServer(app);
 
 app.use(express.json());
-
-// Initialize Gemini safely using lazy loader
-let geminiClient: GoogleGenAI | null = null;
-function getGeminiClient(): GoogleGenAI {
-  if (!geminiClient) {
-    const key = process.env.GEMINI_API_KEY;
-    if (!key) {
-      throw new Error("GEMINI_API_KEY environment variable is required");
-    }
-    // Set up standard user agent according to skill
-    geminiClient = new GoogleGenAI({
-      apiKey: key,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-  }
-  return geminiClient;
-}
 
 // In-memory store of active rooms
 // roomCode -> Room
@@ -101,60 +79,6 @@ setInterval(() => {
     }
   });
 }, 1000);
-
-// API route first: AI Music Recommendations using standard Gemini model
-app.post("/api/ai/suggest", async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    if (!prompt || typeof prompt !== "string") {
-      res.status(400).json({ error: "Missing prompt or invalid string input." });
-      return;
-    }
-
-    const ai = getGeminiClient();
-    const systemPrompt = `You are an expert AI music curator. Recommend 4-5 tracks matching user criteria.
-Each track must have:
-- title (Song name)
-- artist (Musician/band)
-- suggestedSearch (Short keyword search string to find this exact track on YouTube, e.g. "Coldplay Yellow official audio")
-- reason (Brief 1-sentence description of why they'll love it in this room)
-Return the recommendation list in the requested JSON scheme. Include well-known tracks.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: `Request: ${prompt}`,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          required: ["recommendations"],
-          properties: {
-            recommendations: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                required: ["title", "artist", "suggestedSearch", "reason"],
-                properties: {
-                  title: { type: Type.STRING },
-                  artist: { type: Type.STRING },
-                  suggestedSearch: { type: Type.STRING },
-                  reason: { type: Type.STRING },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    const parsed = JSON.parse(response.text || "{}");
-    res.json(parsed);
-  } catch (error: any) {
-    console.error("Gemini Suggest Error:", error);
-    res.status(500).json({ error: error.message || "Failed to generate recommendations." });
-  }
-});
 
 // Real YouTube Search scraper endpoint
 app.get("/api/search", async (req, res) => {
