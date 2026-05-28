@@ -3,7 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>GrooveRoom - YouTube Co-Listening Room</title>
+    <script>
+      // Prevent sandboxed environment error: "Cannot set property fetch of #<Window> which has only a getter"
+      // This allows polyfills or browser-extension scripts to securely patch 'fetch' without throwing.
+      (function() {
+        try {
+          let currentFetch = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() { return currentFetch; },
+            set: function(value) {
+              currentFetch = value;
+            },
+            configurable: true,
+            enumerable: true
+          });
+        } catch (e) {
+          console.warn("Could not patch window.fetch property descriptor", e);
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
