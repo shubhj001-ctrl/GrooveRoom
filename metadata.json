@@ -1,0 +1,6 @@
+{
+  "name": "YouTube Co-Listening Room",
+  "description": "Real-time synchronized YouTube co-listening rooms with host controls, voting queues, integrated live chat, and emoji reactions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
