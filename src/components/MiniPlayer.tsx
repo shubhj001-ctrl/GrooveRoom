@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Play, Pause, SkipForward, Volume2, Maximize2, Minimize2, Radio, Vote } from "lucide-react";
+import { Play, Pause, SkipForward, Volume2, Maximize2, Minimize2, Radio } from "lucide-react";
 import { Room, Track, PlaybackState } from "../types";
 import { motion } from "motion/react";
 
@@ -162,6 +162,29 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
     return () => clearInterval(syncIntervalRef.current);
   }, [isHost, isPlayerReady, currentTrack, playback.isPlaying]);
 
+  // Periodically check and correct drift dynamically (including when coming out of background or minimized state)
+  useEffect(() => {
+    if (!isPlayerReady || !playerRef.current || !currentTrack || !playback.isPlaying) return;
+
+    const driftCheckInterval = setInterval(() => {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
+        const localYTTime = playerRef.current.getCurrentTime() || 0;
+        // Calculate current server authoritative elapsed time
+        const elapsedSinceLastUpdate = (Date.now() - playback.lastUpdated) / 1000;
+        const serverEstTime = playback.currentTime + elapsedSinceLastUpdate;
+
+        const drift = Math.abs(localYTTime - serverEstTime);
+        // If drift is too large (more than 3 seconds), seek to the correct server estimation time
+        if (drift > 3 && serverEstTime < currentTrack.duration) {
+          playerRef.current.seekTo(serverEstTime, true);
+          setLocalTime(serverEstTime);
+        }
+      }
+    }, 2000); // Check every 2 seconds to make sure minimize/inactive state recovers instantly
+
+    return () => clearInterval(driftCheckInterval);
+  }, [isPlayerReady, currentTrack, playback.isPlaying, playback.currentTime, playback.lastUpdated]);
+
   // Interaction controls
   const handleTogglePlay = () => {
     if (!isHost) return;
@@ -190,11 +213,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
     onSendWS({ type: "seek", currentTime: targetSeconds });
   };
 
-  // Skip votes checks
-  const hasVotedSkip = skipVotes.includes(userId);
-  const totalVotesCount = skipVotes.length;
-  const skipRequirement = Math.ceil(participants.length / 2);
-
+  // Skip votes checks skipped - vote to skip is disabled
   // Time labels parse (e.g. 180 -> "3:00")
   const formatTime = (secs: number) => {
     const min = Math.floor(secs / 60);
@@ -232,7 +251,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
         className={`bg-black rounded-lg overflow-hidden transition-all duration-300 ${
           showVideo 
             ? "w-full aspect-video mb-4 relative z-10" 
-            : "absolute w-[1px] h-[1px] opacity-0 pointer-events-none"
+            : "absolute w-[1px] h-[1px] opacity-[0.01] pointer-events-none"
         }`}
       >
         <div id="youtube-player" className="w-full h-full" />
@@ -350,31 +369,14 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                   </button>
                 ) : null}
 
-                {/* Skip Controls (Immediate for host, voting for list members) */}
-                {isHost ? (
+                 {/* Skip Controls (Exclusive for the active Host) */}
+                {isHost && (
                   <button
                     onClick={handleSkip}
                     title="Skip Current Track"
                     className="w-10 h-10 bg-neutral-800 hover:bg-neutral-700 hover:text-white rounded-full flex items-center justify-center transition-colors text-neutral-300 border border-neutral-700/60 cursor-pointer"
                   >
                     <SkipForward className="w-5 h-5 fill-current" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSkip}
-                    className={`h-10 px-4 rounded-full flex items-center justify-center gap-2 transition-all border font-sans text-xs font-semibold cursor-pointer ${
-                      hasVotedSkip
-                        ? "bg-purple-600/20 border-purple-500 text-purple-400"
-                        : "bg-neutral-800 hover:bg-neutral-700 border-neutral-700/60 text-neutral-300 hover:text-white"
-                    }`}
-                  >
-                    <Vote className="w-4 h-4" />
-                    <span>
-                      {hasVotedSkip ? "Voted to Skip" : "Vote to Skip"}
-                    </span>
-                    <span className="font-mono bg-neutral-950/80 border border-neutral-800/40 text-[10px] px-2 py-0.5 rounded-full text-purple-400 font-bold">
-                      {totalVotesCount}/{skipRequirement}
-                    </span>
                   </button>
                 )}
               </div>

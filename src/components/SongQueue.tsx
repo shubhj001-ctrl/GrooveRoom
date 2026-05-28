@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowUp, ArrowDown, Trash2, Calendar, Disc, ListMusic, History } from "lucide-react";
 import { Room, Track } from "../types";
 import { motion, AnimatePresence } from "motion/react";
@@ -15,6 +15,23 @@ type ActiveTab = "queue" | "history";
 export default function SongQueue({ room, userId, isHost, onSendWS }: SongQueueProps) {
   const { queue, history } = room;
   const [activeTab, setActiveTab] = useState<ActiveTab>("queue");
+
+  const [shouldHighlight, setShouldHighlight] = useState(false);
+  const prevQueueIdsRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    const currentIds = queue.map(t => t.id);
+    const hasNewItem = currentIds.some(id => !prevQueueIdsRef.current.includes(id));
+    if (hasNewItem && prevQueueIdsRef.current.length > 0) {
+      setShouldHighlight(true);
+      const timer = setTimeout(() => {
+        setShouldHighlight(false);
+      }, 2000);
+      prevQueueIdsRef.current = currentIds;
+      return () => clearTimeout(timer);
+    }
+    prevQueueIdsRef.current = currentIds;
+  }, [queue]);
 
   // Interaction handlers
   const handleVote = (trackId: string, currentVote: "up" | "down" | null) => {
@@ -43,7 +60,14 @@ export default function SongQueue({ room, userId, isHost, onSendWS }: SongQueueP
   };
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl flex flex-col overflow-hidden h-[460px] relative font-sans">
+    <motion.div
+      animate={{
+        borderColor: shouldHighlight ? "rgb(147, 51, 234)" : "rgb(38, 38, 38)",
+        boxShadow: shouldHighlight ? "0 0 25px rgba(147, 51, 234, 0.3)" : "none"
+      }}
+      transition={{ duration: 0.3 }}
+      className="bg-neutral-900 border rounded-2xl flex flex-col overflow-hidden h-[460px] relative font-sans"
+    >
       {/* Tabs segment */}
       <div className="flex border-b border-neutral-800 bg-neutral-900/80 backdrop-blur-xl relative z-10">
         <button
@@ -248,6 +272,6 @@ export default function SongQueue({ room, userId, isHost, onSendWS }: SongQueueP
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </motion.div>
   );
 }

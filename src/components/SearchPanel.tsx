@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Plus, Loader2, Link } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -24,28 +24,37 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
-  // 1. Direct Search keyword matching
-  const handleKeywordSearch = async (e: React.FormEvent) => {
+  // Bypass form manual submissions
+  const handleKeywordSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setIsLoading(true);
-    setErrorMsg("");
-    setSearchResults([]);
-
-    try {
-      const resp = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!resp.ok) {
-        throw new Error("Failed to pull search results.");
-      }
-      const data = await resp.json();
-      setSearchResults(data.results || []);
-    } catch (err: any) {
-      setErrorMsg(err.message || "An error occurred fetching search results.");
-    } finally {
-      setIsLoading(false);
-    }
   };
+
+  // Dynamic typing autocomplete debouncer
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoading(true);
+      setErrorMsg("");
+      try {
+        const resp = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        if (!resp.ok) {
+          throw new Error("Failed to pull search results.");
+        }
+        const data = await resp.json();
+        setSearchResults(data.results || []);
+      } catch (err: any) {
+        setErrorMsg(err.message || "An error occurred fetching search results.");
+      } finally {
+        setIsLoading(false);
+      }
+    }, 400); // 400ms debounce: highly responsive, safety-conscious
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // 2. Direct Add using URL or ID
   const handleDirectAdd = (e: React.FormEvent) => {

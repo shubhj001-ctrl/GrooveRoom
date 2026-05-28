@@ -11,7 +11,7 @@ dotenv.config();
 import { Room, Track, ChatMessage, Participant, PlaybackState } from "./src/types";
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
 const server = http.createServer(app);
 
 app.use(express.json());
@@ -42,6 +42,156 @@ function generateRoomCode(): string {
   return "99999";
 }
 
+// Keep track of rooms currently fetching suggested next tracks
+const fetchingSuggestions = new Set<string>();
+
+async function playSuggestedTrack(room: Room, now: number) {
+  if (fetchingSuggestions.has(room.code)) return;
+  fetchingSuggestions.add(room.code);
+
+  const previousTrack = room.currentTrack;
+  if (!previousTrack) {
+    room.currentTrack = null;
+    room.playback = { isPlaying: false, currentTime: 0, lastUpdated: now };
+    room.skipVotes = [];
+    broadcastRoomState(room.code);
+    fetchingSuggestions.delete(room.code);
+    return;
+  }
+
+  // Move previous song to history if not already there
+  const alreadyInHistory = room.history.some(t => t.youtubeId === previousTrack.youtubeId && Math.abs(t.createdAt - Date.now()) < 5000);
+  if (!alreadyInHistory) {
+    room.history.unshift({ ...previousTrack });
+    if (room.history.length > 50) room.history.pop();
+  }
+
+  try {
+    let suggested: any = null;
+
+    // Attempt 1: Fetch current track description / watch page suggestions
+    try {
+      const url = `https://www.youtube.com/watch?v=${previousTrack.youtubeId}`;
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        }
+      });
+      const html = await response.text();
+      const match = html.match(/ytInitialData\s*=\s*({.+?});/);
+      if (match) {
+        const json = JSON.parse(match[1]);
+        const results = json.contents?.twoColumnWatchNextResults?.secondaryResults?.secondaryResults?.results;
+        if (Array.isArray(results)) {
+          for (const item of results) {
+            const compactVideo = item.compactVideoRenderer;
+            if (compactVideo && compactVideo.videoId && compactVideo.videoId !== previousTrack.youtubeId) {
+              const id = compactVideo.videoId;
+              const title = compactVideo.title?.simpleText || compactVideo.title?.runs?.[0]?.text || "Suggested Track";
+              const artist = compactVideo.shortBylineText?.runs?.[0]?.text || "Unknown Artist";
+              const lengthText = compactVideo.lengthText?.simpleText || "3:00";
+              const parts = lengthText.split(":").map(Number);
+              let duration = 180;
+              if (parts.length === 2) {
+                duration = parts[0] * 60 + parts[1];
+              } else if (parts.length === 3) {
+                duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+              }
+              suggested = { title, artist, youtubeId: id, duration, thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+              break;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed extracting recommendations from watch page:", e);
+    }
+
+    // Attempt 2 Fallback: Search similar songs
+    if (!suggested) {
+      const query = `similar to ${previousTrack.title} ${previousTrack.artist}`;
+      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAQ%253D%253D`;
+      const response = await fetch(searchUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+        }
+      });
+      const html = await response.text();
+      const match = html.match(/ytInitialData\s*=\s*({.+?});/);
+      if (match) {
+        const json = JSON.parse(match[1]);
+        const contents = json.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
+        if (Array.isArray(contents)) {
+          for (const item of contents) {
+            const video = item.videoRenderer;
+            if (video && video.videoId && video.videoId !== previousTrack.youtubeId) {
+              const id = video.videoId;
+              const title = video.title?.runs?.[0]?.text || "Suggested Track";
+              const artist = video.ownerText?.runs?.[0]?.text || "Unknown Artist";
+              const lengthText = video.lengthText?.simpleText || "3:00";
+              const parts = lengthText.split(":").map(Number);
+              let duration = 180;
+              if (parts.length === 2) {
+                duration = parts[0] * 60 + parts[1];
+              } else if (parts.length === 3) {
+                duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+              }
+              suggested = { title, artist, youtubeId: id, duration, thumbnail: `https://img.youtube.com/vi/${id}/mqdefault.jpg` };
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (suggested && room.queue.length === 0 && (room.currentTrack === previousTrack || room.currentTrack === null)) {
+      const id = Math.random().toString(36).substr(2, 9);
+      const autoTrack: Track = {
+        id,
+        title: suggested.title,
+        artist: suggested.artist,
+        youtubeId: suggested.youtubeId,
+        duration: suggested.duration,
+        thumbnail: suggested.thumbnail,
+        addedBy: "system_autoplay",
+        addedByName: "YouTube Smart Autoplay",
+        upvotes: ["system_autoplay"],
+        downvotes: [],
+        score: 1,
+        createdAt: Date.now(),
+      };
+
+      room.currentTrack = autoTrack;
+      room.playback = {
+        isPlaying: true,
+        currentTime: 0,
+        lastUpdated: Date.now(),
+      };
+      room.skipVotes = [];
+      sendSystemMessage(room.code, `✨ Auto-Playing Suggestion: ${autoTrack.title} (${autoTrack.artist})`);
+      broadcastRoomState(room.code);
+      fetchingSuggestions.delete(room.code);
+      return;
+    }
+  } catch (err) {
+    console.error("Autoplay generation failed:", err);
+  }
+
+  if (room.queue.length === 0 && (room.currentTrack === previousTrack || room.currentTrack === null)) {
+    room.currentTrack = null;
+    room.playback = {
+      isPlaying: false,
+      currentTime: 0,
+      lastUpdated: Date.now(),
+    };
+    room.skipVotes = [];
+    broadcastRoomState(room.code);
+  }
+  fetchingSuggestions.delete(room.code);
+}
+
 // Tick elapsed time for all playing rooms to manage server-authoritative queue transitions
 setInterval(() => {
   const now = Date.now();
@@ -65,16 +215,12 @@ setInterval(() => {
             currentTime: 0,
             lastUpdated: now,
           };
+          room.skipVotes = []; // Reset votes
+          broadcastRoomState(code);
         } else {
-          room.currentTrack = null;
-          room.playback = {
-            isPlaying: false,
-            currentTime: 0,
-            lastUpdated: now,
-          };
+          // No tracks in queue! Auto-play suggestion based on the completed track
+          playSuggestedTrack(room, now);
         }
-        room.skipVotes = []; // Reset votes
-        broadcastRoomState(code);
       }
     }
   });
@@ -415,29 +561,7 @@ wss.on("connection", (ws: WebSocket) => {
         }
 
         case "vote_skip": {
-          if (!room.currentTrack) break;
-
-          // Check if already voted
-          if (room.skipVotes.includes(userId)) {
-            // Unvote skip
-            room.skipVotes = room.skipVotes.filter(id => id !== userId);
-          } else {
-            // Vote skip
-            room.skipVotes.push(userId);
-          }
-
-          // Let's check skip votes target: we require >= 50% of the active participants
-          const totalParticipants = room.participants.length;
-          const votesRequired = Math.ceil(totalParticipants / 2);
-
-          if (room.skipVotes.length >= votesRequired) {
-            sendSystemMessage(roomCode, `🗳️ Skip vote passed (${room.skipVotes.length}/${totalParticipants} votes)! Sliding to next song.`);
-            advancePlayingTrack(room);
-          } else {
-            sendSystemMessage(roomCode, `🗳️ Skip Vote: ${room.skipVotes.length}/${totalParticipants} participants (Needs ${votesRequired}).`);
-          }
-
-          broadcastRoomState(roomCode);
+          ws.send(JSON.stringify({ type: "error", message: "Vote-to-skip is disabled. Only the designated host may skip tracks." }));
           break;
         }
 
@@ -610,15 +734,12 @@ function advancePlayingTrack(room: Room) {
       currentTime: 0,
       lastUpdated: Date.now(),
     };
+    room.skipVotes = []; // Reset skip votes
+    broadcastRoomState(room.code);
   } else {
-    room.currentTrack = null;
-    room.playback = {
-      isPlaying: false,
-      currentTime: 0,
-      lastUpdated: Date.now(),
-    };
+    // Call our elegant autoplay suggester!
+    playSuggestedTrack(room, Date.now());
   }
-  room.skipVotes = []; // Reset skip votes
 }
 
 // Vite integration middleware setup for SPA
