@@ -200,8 +200,8 @@ setInterval(() => {
       room.playback.currentTime += 1;
       room.playback.lastUpdated = now;
 
-      // Check if current song has concluded
-      if (room.playback.currentTime >= room.currentTrack.duration) {
+      // Check if current song has concluded (with a 15-second safety margin to give active Host state-change transitions priorities)
+      if (room.playback.currentTime >= room.currentTrack.duration + 15) {
         // Move current song to history
         room.history.unshift({ ...room.currentTrack });
         if (room.history.length > 50) room.history.pop();

@@ -22,6 +22,18 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
   const [volume, setVolume] = useState(50);
   const [localTime, setLocalTime] = useState(0);
 
+  // Sync references to avoid stale-closure issues in iframe callback
+  const isHostRef = useRef(isHost);
+  const onSendWSRef = useRef(onSendWS);
+
+  useEffect(() => {
+    isHostRef.current = isHost;
+  }, [isHost]);
+
+  useEffect(() => {
+    onSendWSRef.current = onSendWS;
+  }, [onSendWS]);
+
   // Load YouTube IFrame API dynamically
   useEffect(() => {
     // Define the global callback in case it hasn't loaded yet
@@ -61,7 +73,23 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
             playerRef.current.setVolume(volume);
           },
           onStateChange: (event: any) => {
-            // Force compliance if youtube overrides states independently
+            const YTState = (window as any).YT.PlayerState;
+            if (!YTState) return;
+
+            if (isHostRef.current && playerRef.current) {
+              if (event.data === YTState.ENDED) {
+                // Natural track termination on host: trigger skip command
+                onSendWSRef.current({ type: "skip" });
+              } else if (event.data === YTState.PAUSED) {
+                // Keep server paused state in sync
+                const curr = Math.floor(playerRef.current.getCurrentTime() || 0);
+                onSendWSRef.current({ type: "pause", currentTime: curr });
+              } else if (event.data === YTState.PLAYING) {
+                // Keep server resumed state in sync
+                const curr = Math.floor(playerRef.current.getCurrentTime() || 0);
+                onSendWSRef.current({ type: "resume", currentTime: curr });
+              }
+            }
           }
         }
       });
@@ -109,11 +137,13 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
       });
       setLocalTime(playback.currentTime);
     } else {
-      // Correct local states
-      const diff = Math.abs(playerRef.current.getCurrentTime() - playback.currentTime);
-      if (diff > 3) {
-        playerRef.current.seekTo(playback.currentTime, true);
-        setLocalTime(playback.currentTime);
+      // Correct local states for guests only; the host drives the playback state
+      if (!isHost) {
+        const diff = Math.abs(playerRef.current.getCurrentTime() - playback.currentTime);
+        if (diff > 3) {
+          playerRef.current.seekTo(playback.currentTime, true);
+          setLocalTime(playback.currentTime);
+        }
       }
     }
 
@@ -124,7 +154,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
       playerRef.current.pauseVideo();
     }
 
-  }, [currentTrack, playback.isPlaying, isPlayerReady]);
+  }, [currentTrack, playback.isPlaying, isPlayerReady, isHost]);
 
   // Tick progression timer locally to drive UI smoothness
   useEffect(() => {
@@ -164,7 +194,8 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
 
   // Periodically check and correct drift dynamically (including when coming out of background or minimized state)
   useEffect(() => {
-    if (!isPlayerReady || !playerRef.current || !currentTrack || !playback.isPlaying) return;
+    // HOST should NEVER drift-correct to the server estimates, as the host is the sole source of truth!
+    if (isHost || !isPlayerReady || !playerRef.current || !currentTrack || !playback.isPlaying) return;
 
     const driftCheckInterval = setInterval(() => {
       if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
@@ -183,7 +214,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
     }, 2000); // Check every 2 seconds to make sure minimize/inactive state recovers instantly
 
     return () => clearInterval(driftCheckInterval);
-  }, [isPlayerReady, currentTrack, playback.isPlaying, playback.currentTime, playback.lastUpdated]);
+  }, [isHost, isPlayerReady, currentTrack, playback.isPlaying, playback.currentTime, playback.lastUpdated]);
 
   // Interaction controls
   const handleTogglePlay = () => {
@@ -246,12 +277,12 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
         </div>
       )}
 
-      {/* Embedded YouTube Target Node - kept hidden/tiny as standard for custom player interface */}
+      {/* Embedded YouTube Target Node - positioned offscreen when hidden to bypass Youtube player 200px sizing limits */}
       <div 
         className={`bg-black rounded-lg overflow-hidden transition-all duration-300 ${
           showVideo 
             ? "w-full aspect-video mb-4 relative z-10" 
-            : "absolute w-[1px] h-[1px] opacity-[0.01] pointer-events-none"
+            : "fixed -left-[9999px] -top-[9999px] w-[320px] h-[180px] pointer-events-none"
         }`}
       >
         <div id="youtube-player" className="w-full h-full" />
