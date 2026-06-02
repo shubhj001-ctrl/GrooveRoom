@@ -49,6 +49,7 @@ export interface Room {
   currentTrack: Track | null;
   playback: PlaybackState;
   skipVotes: string[]; // userIds who voted to skip current track
+  djIds?: string[]; // userIds enabled to control play/pause/skip/seek
 }
 
 export interface TrackReaction {

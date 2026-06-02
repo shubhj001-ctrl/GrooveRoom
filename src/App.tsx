@@ -12,6 +12,7 @@ import SearchPanel from "./components/SearchPanel";
 import ChatPanel from "./components/ChatPanel";
 import { Music, Share2, LogOut, Copy, Check, Info, Library } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { playNotificationSound, playChatPingSound } from "./lib/sounds";
 
 export default function App() {
   const [userName, setUserName] = useState("");
@@ -40,6 +41,7 @@ export default function App() {
   const [floatingReacts, setFloatingReacts] = useState<FloatingReact[]>([]);
 
   const socketRef = useRef<WebSocket | null>(null);
+  const prevQueueIdsRef = useRef<string[]>([]);
 
   // Parse direct shared links on mount if already joining
   const [isPreJoinCode, setIsPreJoinCode] = useState("");
@@ -87,7 +89,21 @@ export default function App() {
         const { type } = data;
 
         if (type === "sync") {
-          setRoom(data.room);
+          const newRoom = data.room;
+          const isUserHost = newRoom.hostId === userId;
+
+          if (isUserHost && prevQueueIdsRef.current.length > 0) {
+            const hasNewUserAddedTrack = newRoom.queue.some((t: any) => 
+              !prevQueueIdsRef.current.includes(t.id) && t.addedBy !== "system_autoplay"
+            );
+            if (hasNewUserAddedTrack) {
+              playNotificationSound();
+            }
+          }
+
+          prevQueueIdsRef.current = newRoom.queue.map((t: any) => t.id);
+
+          setRoom(newRoom);
           setConnectionStatus("connected");
           setUserName(uName);
 
@@ -101,6 +117,10 @@ export default function App() {
           setConnectionStatus("idle");
           ws.close();
         } else if (type === "chat") {
+          // Play ring tone alert if message is incoming from another listener
+          if (data.message && data.message.userId !== userId) {
+            playChatPingSound();
+          }
           // If in active room, append chat message
           setRoom(prev => {
             if (!prev) return null;

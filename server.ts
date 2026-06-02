@@ -396,6 +396,7 @@ wss.on("connection", (ws: WebSocket) => {
             currentTrack: null,
             playback: { isPlaying: false, currentTime: 0, lastUpdated: Date.now() },
             skipVotes: [],
+            djIds: [],
           };
           rooms.set(joinedCode, room);
         } else {
@@ -460,6 +461,7 @@ wss.on("connection", (ws: WebSocket) => {
       }
 
       const isHost = room.hostId === userId;
+      const isDJ = isHost || (room.djIds && room.djIds.includes(userId)) ? true : false;
 
       switch (type) {
         case "add_track": {
@@ -553,6 +555,33 @@ wss.on("connection", (ws: WebSocket) => {
           break;
         }
 
+        case "toggle_dj": {
+          if (!isHost) {
+            ws.send(JSON.stringify({ type: "error", message: "Only the creator can grant DJ permissions." }));
+            break;
+          }
+          const { targetUserId } = data;
+          if (!targetUserId || targetUserId === room.hostId) break;
+
+          if (!room.djIds) {
+            room.djIds = [];
+          }
+
+          const index = room.djIds.indexOf(targetUserId);
+          const p = room.participants.find(u => u.userId === targetUserId);
+          const pName = p ? p.userName : "Listener";
+
+          if (index >= 0) {
+            room.djIds.splice(index, 1);
+            sendSystemMessage(roomCode, `🚫 DJ control permissions revoked from ${pName}.`);
+          } else {
+            room.djIds.push(targetUserId);
+            sendSystemMessage(roomCode, `🎧 ${pName} has been granted DJ control permissions.`);
+          }
+          broadcastRoomState(roomCode);
+          break;
+        }
+
         case "vote_track": {
           const { trackId, value } = data; // value: 1 = up, -1 = down, 0 = clear
           const targetTrack = room.queue.find(t => t.id === trackId);
@@ -577,13 +606,13 @@ wss.on("connection", (ws: WebSocket) => {
         }
 
         case "skip": {
-          // Creator can skip immediately
-          if (!isHost) {
-            ws.send(JSON.stringify({ type: "error", message: "Only the creator can trigger an immediate skip." }));
+          // Creator or DJ can skip immediately
+          if (!isDJ) {
+            ws.send(JSON.stringify({ type: "error", message: "Only the creator or designated DJ can trigger an immediate skip." }));
             break;
           }
 
-          sendSystemMessage(roomCode, `⏭️ Track skipped by Host.`);
+          sendSystemMessage(roomCode, `⏭️ Track skipped by DJ.`);
           advancePlayingTrack(room);
           broadcastRoomState(roomCode);
           break;
@@ -595,8 +624,8 @@ wss.on("connection", (ws: WebSocket) => {
         }
 
         case "pause": {
-          if (!isHost) {
-            ws.send(JSON.stringify({ type: "error", message: "Only the creator can pause playback." }));
+          if (!isDJ) {
+            ws.send(JSON.stringify({ type: "error", message: "Only the creator or designated DJ can pause playback." }));
             break;
           }
           const { currentTime } = data;
@@ -610,8 +639,8 @@ wss.on("connection", (ws: WebSocket) => {
         }
 
         case "resume": {
-          if (!isHost) {
-            ws.send(JSON.stringify({ type: "error", message: "Only the creator can resume playback." }));
+          if (!isDJ) {
+            ws.send(JSON.stringify({ type: "error", message: "Only the creator or designated DJ can resume playback." }));
             break;
           }
           room.playback.isPlaying = true;
@@ -621,8 +650,8 @@ wss.on("connection", (ws: WebSocket) => {
         }
 
         case "seek": {
-          if (!isHost) {
-            ws.send(JSON.stringify({ type: "error", message: "Only the creator can seek playing track status." }));
+          if (!isDJ) {
+            ws.send(JSON.stringify({ type: "error", message: "Only the creator or designated DJ can seek playing track status." }));
             break;
           }
           const { currentTime } = data;

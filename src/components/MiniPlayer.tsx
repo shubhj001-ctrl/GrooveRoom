@@ -12,6 +12,7 @@ interface MiniPlayerProps {
 
 export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlayerProps) {
   const { currentTrack, playback, skipVotes, participants } = room;
+  const isDJ = isHost || (room.djIds && room.djIds.includes(userId)) ? true : false;
 
   const playerRef = useRef<any>(null);
   const progressIntervalRef = useRef<any>(null);
@@ -21,6 +22,9 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
   const [showVideo, setShowVideo] = useState(false);
   const [volume, setVolume] = useState(50);
   const [localTime, setLocalTime] = useState(0);
+
+  const lastLoadedTrackIdRef = useRef<string | null>(null);
+  const isSwappingTrackRef = useRef<boolean>(false);
 
   // Sync references to avoid stale-closure issues in iframe callback
   const isHostRef = useRef(isHost);
@@ -81,10 +85,12 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                 // Natural track termination on host: trigger skip command
                 onSendWSRef.current({ type: "skip" });
               } else if (event.data === YTState.PAUSED) {
+                if (isSwappingTrackRef.current) return;
                 // Keep server paused state in sync
                 const curr = Math.floor(playerRef.current.getCurrentTime() || 0);
                 onSendWSRef.current({ type: "pause", currentTime: curr });
               } else if (event.data === YTState.PLAYING) {
+                isSwappingTrackRef.current = false;
                 // Keep server resumed state in sync
                 const curr = Math.floor(playerRef.current.getCurrentTime() || 0);
                 onSendWSRef.current({ type: "resume", currentTime: curr });
@@ -131,11 +137,16 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
     }
 
     if (loadedVideoId !== currentTrack.youtubeId) {
+      isSwappingTrackRef.current = true;
+      lastLoadedTrackIdRef.current = currentTrack.id;
       playerRef.current.loadVideoById({
         videoId: currentTrack.youtubeId,
         startSeconds: playback.currentTime
       });
       setLocalTime(playback.currentTime);
+      setTimeout(() => {
+        isSwappingTrackRef.current = false;
+      }, 2500);
     } else {
       // Correct local states for guests only; the host drives the playback state
       if (!isHost) {
@@ -218,7 +229,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
 
   // Interaction controls
   const handleTogglePlay = () => {
-    if (!isHost) return;
+    if (!isDJ) return;
     if (playback.isPlaying) {
       onSendWS({ type: "pause", currentTime: localTime });
     } else {
@@ -227,7 +238,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
   };
 
   const handleSkip = () => {
-    if (isHost) {
+    if (isDJ) {
       onSendWS({ type: "skip" });
     } else {
       onSendWS({ type: "vote_skip" });
@@ -235,7 +246,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
   };
 
   const handleTimelineChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isHost) return;
+    if (!isDJ) return;
     const targetSeconds = Number(e.target.value);
     setLocalTime(targetSeconds);
     if (playerRef.current && isPlayerReady) {
@@ -362,7 +373,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                 type="range"
                 min={0}
                 max={currentTrack.duration}
-                disabled={!isHost}
+                disabled={!isDJ}
                 value={localTime}
                 onChange={handleTimelineChange}
                 className="w-full h-1 bg-neutral-800 accent-purple-500 rounded-lg cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
@@ -374,8 +385,8 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
               <div className="flex items-center gap-3">
                 {/* Lock-status warning icon indicator */}
                 <span className="text-[10px] font-mono font-semibold tracking-wider text-neutral-500 bg-neutral-950 px-3 py-1 rounded-full border border-neutral-800 flex items-center gap-1.5 uppercase">
-                  <span className={`w-2 h-2 rounded-full ${isHost ? "bg-purple-500" : "bg-emerald-500"}`} />
-                  {isHost ? "Host Active" : "Synced"}
+                  <span className={`w-2 h-2 rounded-full ${isHost ? "bg-purple-500" : isDJ ? "bg-emerald-500 animate-pulse" : "bg-neutral-600"}`} />
+                  {isHost ? "Host Active" : isDJ ? "DJ Link" : "Synced"}
                 </span>
 
                 {/* Show/Hide active video output frame */}
@@ -390,8 +401,8 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
 
               {/* Core player knobs */}
               <div className="flex items-center gap-3">
-                {/* Host play toggle controls */}
-                {isHost ? (
+                {/* Host or DJ play toggle controls */}
+                {isDJ ? (
                   <button
                     onClick={handleTogglePlay}
                     className="w-10 h-10 bg-purple-600 hover:bg-purple-500 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 text-white"
@@ -400,8 +411,8 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                   </button>
                 ) : null}
 
-                 {/* Skip Controls (Exclusive for the active Host) */}
-                {isHost && (
+                 {/* Skip Controls (Available for Host or designated DJ) */}
+                {isDJ && (
                   <button
                     onClick={handleSkip}
                     title="Skip Current Track"

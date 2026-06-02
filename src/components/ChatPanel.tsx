@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { MessageSquare, Send, Users, Crown, Heart, Flame, Laugh, Smile, Sparkles } from "lucide-react";
+import { MessageSquare, Send, Users, Crown, Heart, Flame, Laugh, Smile, Sparkles, Music } from "lucide-react";
 import { Room, ChatMessage } from "../types";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -73,21 +73,25 @@ export default function ChatPanel({ room, userId, onSendWS }: ChatPanelProps) {
         {participants.map((user) => {
           const isUserHost = user.userId === hostId;
           const isCurrentUser = user.userId === userId;
+          const isUserDJ = room.djIds?.includes(user.userId) || isUserHost;
+          const showDjButton = hostId === userId && !isUserHost; // only actual Host can toggle others
 
           return (
             <div
               key={user.userId}
-              title={user.userName + (isUserHost ? " (Host)" : "")}
-              className={`flex items-center gap-1.5 px-3 py-1 bg-neutral-900 border rounded-full shrink-0 relative ${
+              title={user.userName + (isUserHost ? " (Host)" : isUserDJ ? " (DJ)" : "")}
+              className={`flex items-center gap-1.5 px-3 py-1 bg-neutral-900 border rounded-full shrink-0 relative transition-all ${
                 isUserHost 
                   ? "border-purple-500/40 text-purple-200" 
+                  : isUserDJ
+                  ? "border-emerald-500/40 text-emerald-200"
                   : "border-neutral-800/60 text-neutral-400"
               }`}
             >
               <div className="relative">
                 {/* Visual initials Avatar bubble */}
                 <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-extrabold ${
-                  isUserHost ? "bg-purple-600 text-white" : "bg-neutral-800 text-neutral-300"
+                  isUserHost ? "bg-purple-600 text-white" : isUserDJ ? "bg-emerald-600 text-white" : "bg-neutral-800 text-neutral-300"
                 }`}>
                   {user.userName ? user.userName.substring(0, 2).toUpperCase() : "?"}
                 </div>
@@ -100,7 +104,23 @@ export default function ChatPanel({ room, userId, onSendWS }: ChatPanelProps) {
               </span>
 
               {isUserHost && <Crown className="w-3 h-3 text-purple-400 fill-purple-400 shrink-0" />}
+              {!isUserHost && isUserDJ && <Music className="w-3 h-3 text-emerald-400 shrink-0 animate-pulse" />}
               {isCurrentUser && <span className="text-[8px] text-neutral-600 uppercase tracking-widest font-mono shrink-0">(You)</span>}
+
+              {/* DJ privilege toggle button for Host */}
+              {showDjButton && (
+                <button
+                  onClick={() => onSendWS({ type: "toggle_dj", targetUserId: user.userId })}
+                  className={`ml-1.5 p-0.5 rounded cursor-pointer transition-colors ${
+                    isUserDJ 
+                      ? "bg-emerald-500/15 hover:bg-emerald-500/35 text-emerald-400" 
+                      : "bg-neutral-800 hover:bg-neutral-700 text-neutral-500 hover:text-neutral-300"
+                  }`}
+                  title={isUserDJ ? "Revoke DJ permissions" : "Grant DJ permissions"}
+                >
+                  <Music className="w-2.5 h-2.5" />
+                </button>
+              )}
             </div>
           );
         })}
