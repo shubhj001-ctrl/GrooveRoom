@@ -152,7 +152,7 @@ export default function SearchPanel({ onAddTrack, theme }: SearchPanelProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search favorite songs, artists, live lofi..."
-                className={`flex-1 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
+                className={`flex-1 min-w-0 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
                   isDark 
                     ? "bg-[#05070c] border border-[#1e2947] text-neutral-200 placeholder-[#3e4f7a] focus:border-cyan-400 focus:ring-cyan-400" 
                     : "bg-[#f5f8fd] border border-[#bfd3ec] text-neutral-900 placeholder-[#7a8da3] focus:border-indigo-500 focus:ring-indigo-500"
@@ -161,7 +161,7 @@ export default function SearchPanel({ onAddTrack, theme }: SearchPanelProps) {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`p-2.5 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer text-xs font-bold ${
+                className={`shrink-0 p-2.5 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer text-xs font-bold ${
                   isDark
                     ? "bg-cyan-500 hover:bg-cyan-400 text-[#0a101f]"
                     : "bg-indigo-600 hover:bg-indigo-500 text-white"
@@ -220,7 +220,7 @@ export default function SearchPanel({ onAddTrack, theme }: SearchPanelProps) {
                 value={directUrl}
                 onChange={(e) => setDirectUrl(e.target.value)}
                 placeholder="Paste full YouTube Link or exact 11-char Video ID"
-                className={`flex-1 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
+                className={`flex-1 min-w-0 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
                   isDark 
                     ? "bg-[#05070c] border border-[#1e2947] text-neutral-200 placeholder-[#3e4f7a] focus:border-cyan-400 focus:ring-cyan-400" 
                     : "bg-[#f5f8fd] border border-[#bfd3ec] text-neutral-900 placeholder-[#7a8da3] focus:border-indigo-500 focus:ring-indigo-500"

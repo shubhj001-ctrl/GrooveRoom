@@ -2,8 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>GrooveRoom - YouTube Co-Listening Room</title>
+    <!-- Android PWA Support -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#070b13" />
+    <link rel="icon" type="image/jpeg" href="https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=192&h=192&fit=crop&q=80" />
     <script>
       // Prevent sandboxed environment error: "Cannot set property fetch of #<Window> which has only a getter"
       // This allows polyfills or browser-extension scripts to securely patch 'fetch' without throwing.

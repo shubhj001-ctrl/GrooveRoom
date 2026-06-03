@@ -1,0 +1,22 @@
+{
+  "short_name": "GrooveRoom",
+  "name": "GrooveRoom Co-Listening Circle",
+  "description": "Real-time synchronized YouTube co-listening rooms with host controls, voting queues, integrated live chat, and emoji reactions.",
+  "icons": [
+    {
+      "src": "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=192&h=192&fit=crop&q=80",
+      "type": "image/jpeg",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?w=512&h=512&fit=crop&q=80",
+      "type": "image/jpeg",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#070b13",
+  "theme_color": "#070b13",
+  "display": "standalone",
+  "orientation": "portrait"
+}

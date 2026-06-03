@@ -114,7 +114,7 @@ export default function JointLanding({ onJoin, onCreate, errorMsg, theme, onTogg
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className={`backdrop-blur-xl p-8 rounded-3xl transition-all duration-300 ${
+          className={`backdrop-blur-xl p-5 sm:p-8 rounded-3xl transition-all duration-300 ${
             isDark 
               ? "bg-[#0c1122]/60 border border-[#1b2542] shadow-[0_20px_50px_rgba(0,0,0,0.6)]" 
               : "bg-white/90 border border-[#b2cdf4] shadow-[0_20px_50px_rgba(30,41,59,0.08)]"
@@ -179,16 +179,16 @@ export default function JointLanding({ onJoin, onCreate, errorMsg, theme, onTogg
                         value={roomCode}
                         onChange={(e) => setRoomCode(e.target.value.replace(/\D/g, ""))}
                         placeholder="Enter 5-digit room code"
-                        className={`flex-1 rounded-xl px-4 py-3.5 text-center text-lg font-mono tracking-widest uppercase focus:outline-none focus:ring-1 transition-all ${
+                        className={`flex-1 min-w-0 rounded-xl px-4 py-3.5 text-center text-lg font-mono tracking-widest uppercase focus:outline-none focus:ring-1 transition-all ${
                           isDark
                             ? "bg-[#05070c] border border-[#1e2947] text-[#22d3ee] placeholder-[#2e3e60] focus:border-cyan-400 focus:ring-cyan-400"
-                            : "bg-[#f5f8fd] border border-[#bfd3ec] text-[#0891b2] placeholder-[#819ab0] focus:border-indigo-500 focus:ring-indigo-500"
+                            : "bg-[#f5f8fd] border border-[#bfd3ec] text-[#0891b2] placeholder-[#819ab0] focus:border-indigo-500 focus:ring-indigo-550"
                         }`}
                       />
                       <button
                         type="submit"
                         disabled={roomCode.length !== 5}
-                        className={`rounded-xl px-5 flex items-center justify-center transition-colors font-bold cursor-pointer transition-all ${
+                        className={`shrink-0 rounded-xl px-5 flex items-center justify-center transition-colors font-bold cursor-pointer transition-all ${
                           isDark
                             ? "bg-cyan-500 hover:bg-cyan-400 disabled:bg-[#151c30] disabled:text-[#3d4b6e] text-[#0a101f]"
                             : "bg-indigo-600 hover:bg-indigo-500 disabled:bg-[#eaf1f8] disabled:text-[#9bb3cc] text-white"

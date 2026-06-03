@@ -241,7 +241,7 @@ export default function ChatPanel({ room, userId, onSendWS, theme }: ChatPanelPr
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Discuss tracks, suggest vibe shifts..."
-          className={`flex-1 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
+          className={`flex-1 min-w-0 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
             isDark 
               ? "bg-[#05070c] border border-[#1e2947] text-neutral-200 placeholder-[#3e4f7a] focus:border-cyan-400 focus:ring-cyan-400" 
               : "bg-white border border-[#bfd3ec] text-neutral-900 placeholder-[#7a8da3] focus:border-indigo-500 focus:ring-indigo-550"
