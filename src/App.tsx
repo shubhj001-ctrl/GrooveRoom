@@ -57,8 +57,17 @@ export default function App() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get("room");
+    
+    const storedRoomCode = localStorage.getItem("groove_roomcode");
+    const storedUserName = localStorage.getItem("groove_username");
+
     if (roomParam && roomParam.length === 5) {
       setIsPreJoinCode(roomParam);
+      if (storedRoomCode === roomParam && storedUserName) {
+        connectToRoom(roomParam, storedUserName);
+      }
+    } else if (storedRoomCode && storedRoomCode.length === 5 && storedUserName) {
+      connectToRoom(storedRoomCode, storedUserName);
     }
   }, []);
 
@@ -94,7 +103,9 @@ export default function App() {
 
           if (isUserHost && prevQueueIdsRef.current.length > 0) {
             const hasNewUserAddedTrack = newRoom.queue.some((t: any) => 
-              !prevQueueIdsRef.current.includes(t.id) && t.addedBy !== "system_autoplay"
+              !prevQueueIdsRef.current.includes(t.id) && 
+              t.addedBy !== "system_autoplay" &&
+              t.addedBy !== userId
             );
             if (hasNewUserAddedTrack) {
               playNotificationSound();
@@ -107,9 +118,18 @@ export default function App() {
           setConnectionStatus("connected");
           setUserName(uName);
 
+          localStorage.setItem("groove_roomcode", newRoom.code);
+          localStorage.setItem("groove_username", uName);
+
           // Update URL bar silently to support direct room code copying without hard reloading
           const newUrl = `${window.location.origin}?room=${data.room.code}`;
           window.history.pushState({}, "", newUrl);
+        } else if (type === "room_ended") {
+          setToast({ message: data.message || "The host has closed the room. Returning to main menu.", type: "warning" });
+          localStorage.removeItem("groove_roomcode");
+          setRoom(null);
+          setConnectionStatus("idle");
+          ws.close();
         } else if (type === "toast") {
           setToast({ message: data.message, type: data.toastType || "info" });
         } else if (type === "error") {
@@ -179,8 +199,15 @@ export default function App() {
   };
 
   const handleExitRoom = () => {
-    if (socketRef.current) {
-      socketRef.current.close();
+    localStorage.removeItem("groove_roomcode");
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "leave_room" }));
+      // Give a tiny moment for delivery before active closing
+      setTimeout(() => {
+        if (socketRef.current) socketRef.current.close();
+      }, 100);
+    } else {
+      if (socketRef.current) socketRef.current.close();
     }
     // Clean URL parameters
     window.history.pushState({}, "", window.location.origin);

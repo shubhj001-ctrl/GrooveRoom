@@ -26,6 +26,7 @@ interface ClientContext {
   roomCode: string;
   userId: string;
   userName: string;
+  explicitLeave?: boolean;
 }
 const clients = new Map<WebSocket, ClientContext>();
 
@@ -729,6 +730,36 @@ wss.on("connection", (ws: WebSocket) => {
           break;
         }
 
+        case "leave_room": {
+          const isHostOfRoom = room.hostId === userId;
+          if (isHostOfRoom) {
+            // When the host leaves, the room gets ended.
+            // Notify everyone in the room to exit.
+            const endPayload = JSON.stringify({
+              type: "room_ended",
+              message: "The host has closed the room. All connections will be terminated."
+            });
+            clients.forEach((context, socket) => {
+              if (context.roomCode === roomCode && socket.readyState === WebSocket.OPEN) {
+                socket.send(endPayload);
+              }
+            });
+            rooms.delete(roomCode);
+            console.log(`Explicitly closed host room: ${roomCode}`);
+          } else {
+            // Listener leaves: actually remove them from the room
+            room.participants = room.participants.filter(p => p.userId !== userId);
+            room.skipVotes = room.skipVotes.filter(id => id !== userId);
+            if (room.djIds) {
+              room.djIds = room.djIds.filter(id => id !== userId);
+            }
+            sendSystemMessage(roomCode, `${userName} has left the listening circle.`);
+            broadcastRoomState(roomCode);
+          }
+          clientCtx.explicitLeave = true;
+          break;
+        }
+
         default:
           break;
       }
@@ -741,37 +772,43 @@ wss.on("connection", (ws: WebSocket) => {
     const clientCtx = clients.get(ws);
     if (!clientCtx) return;
 
-    const { roomCode, userId, userName } = clientCtx;
+    const { roomCode, userId, userName, explicitLeave } = clientCtx;
     clients.delete(ws);
 
     const room = rooms.get(roomCode);
     if (room) {
-      // Remove from room participants
-      room.participants = room.participants.filter(p => p.userId !== userId);
+      if (explicitLeave) {
+        console.log(`Participant ${userName} (${userId}) explicitly left the room: ${roomCode}`);
+        return;
+      }
 
-      // Clean up skip votes mapping
-      room.skipVotes = room.skipVotes.filter(id => id !== userId);
+      // Passive disconnect (refresh / network drop).
+      // We do NOT remove them from participants list immediately.
+      // This allows them to stay in the room when refreshing the page.
+      console.log(`Participant ${userName} (${userId}) loosely disconnected from room: ${roomCode}. Restoring state on re-join.`);
 
-      sendSystemMessage(roomCode, `${userName} has left the listening circle.`);
+      // Check if there are ANY active/open WebSocket connections remaining in this room.
+      let activeConnections = 0;
+      clients.forEach((ctx, socket) => {
+        if (ctx.roomCode === roomCode && socket.readyState === WebSocket.OPEN) {
+          activeConnections++;
+        }
+      });
 
-      if (room.participants.length === 0) {
-        // Destroy empty room after 20 seconds delay to free memory, allowing graceful refreshing
+      if (activeConnections === 0) {
+        // Complete silence: destroy room after 60 seconds grace period if nobody reconnects
         setTimeout(() => {
-          const r = rooms.get(roomCode);
-          if (r && r.participants.length === 0) {
+          let currentActiveConnections = 0;
+          clients.forEach((ctx, socket) => {
+            if (ctx.roomCode === roomCode && socket.readyState === WebSocket.OPEN) {
+              currentActiveConnections++;
+            }
+          });
+          if (currentActiveConnections === 0) {
             rooms.delete(roomCode);
-            console.log(`Destroyed empty room: ${roomCode}`);
+            console.log(`Destroyed idle room with no active connections after 60s: ${roomCode}`);
           }
-        }, 20000);
-      } else if (room.hostId === userId) {
-        // Creator left, nominate next participant as host immediately
-        const nextHost = room.participants[0];
-        room.hostId = nextHost.userId;
-        nextHost.isHost = true;
-        sendSystemMessage(roomCode, `👑 Host has left. ${nextHost.userName} is now the Host of the room.`);
-        broadcastRoomState(roomCode);
-      } else {
-        broadcastRoomState(roomCode);
+        }, 60000);
       }
     }
   });
