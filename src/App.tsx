@@ -42,6 +42,7 @@ export default function App() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const prevQueueIdsRef = useRef<string[]>([]);
+  const isFirstSyncRef = useRef(true);
 
   // Parse direct shared links on mount if already joining
   const [isPreJoinCode, setIsPreJoinCode] = useState("");
@@ -72,6 +73,7 @@ export default function App() {
   }, []);
 
   const connectToRoom = (code: string, uName: string) => {
+    isFirstSyncRef.current = true;
     setConnectionStatus("connecting");
     setErrorMsg("");
 
@@ -101,7 +103,7 @@ export default function App() {
           const newRoom = data.room;
           const isUserHost = newRoom.hostId === userId;
 
-          if (isUserHost && prevQueueIdsRef.current.length > 0) {
+          if (!isFirstSyncRef.current && isUserHost) {
             const hasNewUserAddedTrack = newRoom.queue.some((t: any) => 
               !prevQueueIdsRef.current.includes(t.id) && 
               t.addedBy !== "system_autoplay" &&
@@ -112,6 +114,7 @@ export default function App() {
             }
           }
 
+          isFirstSyncRef.current = false;
           prevQueueIdsRef.current = newRoom.queue.map((t: any) => t.id);
 
           setRoom(newRoom);

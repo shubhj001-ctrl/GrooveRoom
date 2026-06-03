@@ -90,7 +90,7 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                 const curr = Math.floor(playerRef.current.getCurrentTime() || 0);
                 onSendWSRef.current({ type: "pause", currentTime: curr });
               } else if (event.data === YTState.PLAYING) {
-                isSwappingTrackRef.current = false;
+                if (isSwappingTrackRef.current) return;
                 // Keep server resumed state in sync
                 const curr = Math.floor(playerRef.current.getCurrentTime() || 0);
                 onSendWSRef.current({ type: "resume", currentTime: curr });
@@ -139,14 +139,15 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
     if (loadedVideoId !== currentTrack.youtubeId) {
       isSwappingTrackRef.current = true;
       lastLoadedTrackIdRef.current = currentTrack.id;
+      const startSecs = playback.currentTime < 5 ? 0 : playback.currentTime;
       playerRef.current.loadVideoById({
         videoId: currentTrack.youtubeId,
-        startSeconds: playback.currentTime
+        startSeconds: startSecs
       });
-      setLocalTime(playback.currentTime);
+      setLocalTime(startSecs);
       setTimeout(() => {
         isSwappingTrackRef.current = false;
-      }, 2500);
+      }, 3000);
     } else {
       // Correct local states for guests only; the host drives the playback state
       if (!isHost) {
@@ -211,6 +212,10 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
     const driftCheckInterval = setInterval(() => {
       if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
         const localYTTime = playerRef.current.getCurrentTime() || 0;
+
+        // Skip drift check at the very beginning of the song to allow clean buffering
+        if (localYTTime < 6) return;
+
         // Calculate current server authoritative elapsed time
         const elapsedSinceLastUpdate = (Date.now() - playback.lastUpdated) / 1000;
         const serverEstTime = playback.currentTime + elapsedSinceLastUpdate;

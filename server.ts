@@ -644,7 +644,11 @@ wss.on("connection", (ws: WebSocket) => {
             ws.send(JSON.stringify({ type: "error", message: "Only the creator or designated DJ can resume playback." }));
             break;
           }
+          const { currentTime } = data;
           room.playback.isPlaying = true;
+          if (typeof currentTime === "number") {
+            room.playback.currentTime = currentTime;
+          }
           room.playback.lastUpdated = Date.now();
           broadcastRoomState(roomCode);
           break;
