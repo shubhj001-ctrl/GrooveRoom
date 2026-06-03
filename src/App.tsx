@@ -10,7 +10,7 @@ import MiniPlayer from "./components/MiniPlayer";
 import SongQueue from "./components/SongQueue";
 import SearchPanel from "./components/SearchPanel";
 import ChatPanel from "./components/ChatPanel";
-import { Music, Share2, LogOut, Copy, Check, Info, Library } from "lucide-react";
+import { Music, Share2, LogOut, Copy, Check, Info, Library, Sun, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { playNotificationSound, playChatPingSound } from "./lib/sounds";
 
@@ -30,6 +30,16 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("groove_theme") as "dark" | "light") || "dark";
+  });
+
+  const toggleTheme = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem("groove_theme", newTheme);
+  };
 
   // Floating reactions list
   interface FloatingReact {
@@ -243,7 +253,11 @@ export default function App() {
   const isCurrentUserHost = room ? room.hostId === userId : false;
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col font-sans select-none overflow-x-hidden">
+    <div className={`min-h-screen flex flex-col font-sans select-none overflow-x-hidden transition-colors duration-500 ${
+      theme === "light"
+        ? "bg-gradient-to-b from-[#f0f5fc] via-[#f8fafd] to-white text-neutral-850"
+        : "bg-gradient-to-b from-[#070b13] via-[#05060a] to-[#020306] text-neutral-100"
+    }`}>
       
       {/* 1. Landing View */}
       {connectionStatus !== "connected" && !room ? (
@@ -251,13 +265,15 @@ export default function App() {
           onJoin={handleJoinRoom}
           onCreate={handleCreateRoom}
           errorMsg={errorMsg}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
       ) : (
         room && (
           <div className="min-h-screen flex flex-col lg:h-screen lg:overflow-hidden relative pb-10 lg:pb-0">
             {/* Background glowing orbs */}
-            <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-purple-900/5 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-0 left-1/4 w-[400px] h-[400px] bg-emerald-900/5 rounded-full blur-[120px] pointer-events-none" />
+            <div className="absolute top-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[140px] pointer-events-none" />
+            <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none" />
 
             {/* Custom Emoji Visual Floating Particles Overlaid */}
             <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
@@ -273,7 +289,7 @@ export default function App() {
                     className="absolute text-3xl floating-emoji flex flex-col items-center select-none"
                   >
                     <span>{react.emoji}</span>
-                    <span className="text-[9px] font-mono font-medium text-neutral-400 bg-neutral-950/95 border border-neutral-800 rounded-md px-1 py-0.5 mt-0.5 leading-none whitespace-nowrap shadow">
+                    <span className="text-[9px] font-mono font-medium text-cyan-200 bg-[#070a14] border border-[#1c2642] rounded-md px-1.5 py-0.5 mt-0.5 leading-none whitespace-nowrap shadow">
                       {react.userName}
                     </span>
                   </div>
@@ -282,16 +298,20 @@ export default function App() {
             </div>
 
             {/* Top Workspace Ribbon */}
-            <header className="bg-neutral-900/45 border-b border-neutral-800/80 backdrop-blur-md p-4 shrink-0 flex items-center justify-between sticky top-0 z-20">
+            <header className={`backdrop-blur-md p-4 shrink-0 flex items-center justify-between sticky top-0 z-20 border-b transition-colors duration-300 ${
+              theme === "light"
+                ? "bg-white/90 border-[#cad9ef] shadow-sm"
+                : "bg-[#0c1122]/55 border-[#1b2542]"
+            }`}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-tr from-purple-600 to-indigo-600 rounded-xl flex items-center justify-center glow-purple">
-                  <Music className="w-5 h-5 text-white" />
+                <div className="w-10 h-10 bg-gradient-to-tr from-cyan-400 via-teal-400 to-indigo-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.25)]">
+                  <Music className="w-5 h-5 text-[#0a101f]" />
                 </div>
                 <div>
-                  <h1 className="text-sm font-semibold tracking-wide font-display text-neutral-200">
+                  <h1 className={`text-sm font-bold tracking-wide font-display ${theme === "light" ? "text-slate-800" : "text-neutral-100"}`}>
                     GrooveRoom Workspace
                   </h1>
-                  <p className="text-[10px] text-neutral-500 font-mono mt-0.5 font-light uppercase tracking-widest">
+                  <p className={`text-[9px] font-mono mt-0.5 font-semibold uppercase tracking-widest ${theme === "light" ? "text-slate-500" : "text-[#4e5f8a]"}`}>
                     Synchronized Listening Circle
                   </p>
                 </div>
@@ -299,23 +319,44 @@ export default function App() {
 
               {/* Utility buttons */}
               <div className="flex items-center gap-3">
+                {/* Sun/Moon Toggle button inside the live Workspace */}
+                <button
+                  onClick={toggleTheme}
+                  title="Toggle Light / Dark mode"
+                  className={`p-2.5 rounded-xl border flex items-center justify-center cursor-pointer transition-all ${
+                    theme === "light"
+                      ? "bg-slate-100 hover:bg-slate-200 border-[#bfd3ec] text-slate-800"
+                      : "bg-[#0c1122] border-[#1d2744] text-neutral-300 hover:bg-[#151d38] hover:text-white"
+                  }`}
+                >
+                  {theme === "light" ? <Moon className="w-4 h-4 text-[#0c1122]" /> : <Sun className="w-4 h-4 text-[#ffd700]" />}
+                </button>
+
                 {/* Copy Link wrapper Button */}
                 <button
                   onClick={copyInviteLink}
                   className={`py-2 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-2 border cursor-pointer transition-all ${
                     copiedLink
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                      : "bg-neutral-900 border-neutral-800 text-neutral-300 hover:border-neutral-700/80 hover:bg-neutral-850"
+                      ? (theme === "light"
+                        ? "bg-cyan-50 border-cyan-400 text-cyan-700 font-bold"
+                        : "bg-cyan-500/10 border-cyan-500/40 text-cyan-400 font-bold")
+                      : (theme === "light"
+                        ? "bg-white border-[#cad9ef] text-slate-700 hover:bg-slate-50 hover:border-slate-350"
+                        : "bg-[#0c1122] border-[#1d2744] text-neutral-300 hover:text-white hover:border-[#2a3861] hover:bg-[#111831]")
                   }`}
                 >
-                  {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5 text-neutral-400" />}
-                  <span>{copiedLink ? "Link Copied" : "Copy Shared Invitation Link"}</span>
+                  {copiedLink ? <Check className={`w-3.5 h-3.5 ${theme === "light" ? "text-cyan-700" : "text-cyan-400"}`} /> : <Copy className={`w-3.5 h-3.5 ${theme === "light" ? "text-cyan-600" : "text-cyan-400"}`} />}
+                  <span>{copiedLink ? "Link Copied!" : "Copy Shared Invitation Link"}</span>
                 </button>
 
                 {/* Quit Room */}
                 <button
                   onClick={handleExitRoom}
-                  className="p-2 bg-neutral-900 hover:bg-rose-500/10 border border-neutral-800 text-neutral-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer"
+                  className={`p-2 border rounded-xl transition-all cursor-pointer ${
+                    theme === "light"
+                      ? "bg-white border-[#cad9ef] text-rose-600 hover:bg-rose-50 hover:border-rose-200"
+                      : "bg-[#0c1122] hover:bg-rose-500/10 border border-[#1d2744] hover:border-rose-500/30 text-neutral-400 hover:text-rose-400"
+                  }`}
                   title="Leave Room"
                 >
                   <LogOut className="w-4 h-4" />
@@ -334,10 +375,11 @@ export default function App() {
                   userId={userId}
                   isHost={isCurrentUserHost}
                   onSendWS={handleSendWSMessage}
+                  theme={theme}
                 />
 
                 {/* Fast Track Suggestions and manual ID adder */}
-                <SearchPanel onAddTrack={handleAddTrack} />
+                <SearchPanel onAddTrack={handleAddTrack} theme={theme} />
               </main>
 
               {/* Central Segment: Sorted Queue with list history priorities */}
@@ -347,6 +389,7 @@ export default function App() {
                   userId={userId}
                   isHost={isCurrentUserHost}
                   onSendWS={handleSendWSMessage}
+                  theme={theme}
                 />
               </section>
 
@@ -356,6 +399,7 @@ export default function App() {
                   room={room}
                   userId={userId}
                   onSendWS={handleSendWSMessage}
+                  theme={theme}
                 />
               </aside>
 
@@ -372,10 +416,16 @@ export default function App() {
               initial={{ opacity: 0, y: 50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95, y: 15, transition: { duration: 0.2 } }}
-              className="pointer-events-auto flex items-center gap-3 px-5 py-3.5 bg-neutral-900 border border-purple-500/30 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] max-w-sm"
+              className={`pointer-events-auto flex items-center gap-3 px-5 py-3.5 border rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.15)] max-w-sm ${
+                theme === "light"
+                  ? "bg-white border-cyan-400 text-slate-800"
+                  : "bg-[#0c1122] border-cyan-500/30 text-neutral-200"
+              }`}
             >
-              <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse shrink-0" />
-              <p className="text-xs font-semibold text-neutral-200 tracking-wide font-sans leading-relaxed">
+              <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+              <p className={`text-xs font-semibold tracking-wide font-sans leading-relaxed ${
+                theme === "light" ? "text-slate-850" : "text-neutral-200"
+              }`}>
                 {toast.message}
               </p>
             </motion.div>

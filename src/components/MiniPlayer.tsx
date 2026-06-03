@@ -8,9 +8,10 @@ interface MiniPlayerProps {
   userId: string;
   isHost: boolean;
   onSendWS: (msg: any) => void;
+  theme?: "dark" | "light";
 }
 
-export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlayerProps) {
+export default function MiniPlayer({ room, userId, isHost, onSendWS, theme }: MiniPlayerProps) {
   const { currentTrack, playback, skipVotes, participants } = room;
   const isDJ = isHost || (room.djIds && room.djIds.includes(userId)) ? true : false;
 
@@ -270,12 +271,17 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
 
   // Dynamic visual soundbars
   const activeSoundBars = Array.from({ length: 18 }, (_, k) => k);
+  const isDark = theme !== "light";
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 glow-purple transition-all duration-300 relative overflow-hidden">
+    <div className={`p-6 rounded-3xl transition-all duration-350 relative overflow-hidden ${
+      isDark 
+        ? "bg-[#0c1122]/75 border border-[#1b2542] shadow-xl shadow-[0_15px_35px_rgba(0,0,0,0.5)] text-neutral-100" 
+        : "bg-white border border-[#cad9ef] shadow-xl shadow-[0_15px_35px_rgba(30,41,59,0.05)] text-neutral-800"
+    }`}>
       {/* Dynamic Soundwave Background visualization */}
       {playback.isPlaying && currentTrack && (
-        <div className="absolute top-2 right-4 flex items-end gap-1 h-8 opacity-30 select-none">
+        <div className="absolute top-3 right-5 flex items-end gap-[2px] h-8 opacity-30 select-none">
           {activeSoundBars.map(index => {
             const delayVal = (index * 0.15).toFixed(2);
             return (
@@ -286,18 +292,18 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                   animationDelay: `${delayVal}s`,
                   height: `${5 + Math.random() * 25}px`,
                 }}
-                className="w-[1.5px] bg-purple-500 rounded-full"
+                className={`w-[2px] rounded-full ${isDark ? "bg-[#22d3ee]" : "bg-cyan-600"}`}
               />
             );
           })}
         </div>
       )}
 
-      {/* Embedded YouTube Target Node - positioned offscreen when hidden to bypass Youtube player 200px sizing limits */}
+      {/* Embedded YouTube Target Node */}
       <div 
         className={`bg-black rounded-lg overflow-hidden transition-all duration-300 ${
           showVideo 
-            ? "w-full aspect-video mb-4 relative z-10" 
+            ? `w-full aspect-video mb-4 relative z-10 border ${isDark ? "border-[#1b2542]" : "border-[#cad9ef]"}` 
             : "fixed -left-[9999px] -top-[9999px] w-[320px] h-[180px] pointer-events-none"
         }`}
       >
@@ -306,13 +312,15 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
 
       {!currentTrack ? (
         <div className="flex flex-col items-center justify-center py-10 text-center space-y-4">
-          <div className="w-16 h-16 bg-neutral-950 border border-neutral-800 rounded-full flex items-center justify-center animate-pulse">
-            <Radio className="w-6 h-6 text-neutral-600" />
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center animate-pulse border ${
+            isDark ? "bg-[#05070c] border-[#151c31]" : "bg-[#f5f8fd] border-[#bfd3ec]"
+          }`}>
+            <Radio className={`w-6 h-6 ${isDark ? "text-cyan-500/40" : "text-cyan-600/40"}`} />
           </div>
           <div>
-            <h3 className="font-display font-medium text-neutral-200">The Room is Silent</h3>
-            <p className="text-xs text-neutral-500 max-w-xs mt-1">
-              Suggest list items below by typing or searching with AI to initiate synchronized grooves!
+            <h3 className={`font-display font-bold ${isDark ? "text-[#e2e8f0]" : "text-neutral-800"}`}>The Room is Silent</h3>
+            <p className={`text-xs max-w-xs mt-1 leading-relaxed ${isDark ? "text-[#526490]" : "text-[#5e77ad]"}`}>
+              Suggest list items below by typing or searching to initiate synchronized grooves!
             </p>
           </div>
         </div>
@@ -323,17 +331,21 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
             {/* Vinyl record custom visualizer */}
             <div className="relative">
               <div 
-                className={`w-28 h-28 bg-neutral-950 rounded-full border-[6px] border-neutral-800 relative z-10 flex items-center justify-center group overflow-hidden ${
-                  playback.isPlaying ? "animate-spin-slow glow-purple-active" : ""
+                className={`w-28 h-28 rounded-full border-[6px] relative z-10 flex items-center justify-center group overflow-hidden transition-all ${
+                  isDark 
+                    ? `bg-[#04060b] border-[#18233f] ${playback.isPlaying ? "animate-spin-slow shadow-[0_0_35px_rgba(6,182,212,0.25)]" : ""}`
+                    : `bg-[#1e293b] border-[#475569] ${playback.isPlaying ? "animate-spin-slow shadow-[0_0_35px_rgba(99,102,241,0.15)]" : ""}`
                 }`}
               >
                 {/* Visual grooves */}
-                <div className="absolute inset-2 rounded-full border border-neutral-900/40" />
-                <div className="absolute inset-4 rounded-full border border-neutral-900/60" />
-                <div className="absolute inset-6 rounded-full border border-neutral-900/80" />
+                <div className={`absolute inset-2 rounded-full border ${isDark ? "border-[#0d1326]/30" : "border-[#000000]/10"}`} />
+                <div className={`absolute inset-4 rounded-full border ${isDark ? "border-[#0d1326]/40" : "border-[#000000]/15"}`} />
+                <div className={`absolute inset-6 rounded-full border ${isDark ? "border-[#0d1326]/60" : "border-[#000000]/20"}`} />
                 
                 {/* Thumbnail insert */}
-                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-neutral-900/90 bg-neutral-900 flex items-center justify-center z-10">
+                <div className={`w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center z-10 ${
+                  isDark ? "border-[#090e1c] bg-[#090e1c]" : "border-[#334155] bg-neutral-900"
+                }`}>
                   <img
                     src={currentTrack.thumbnail || `https://img.youtube.com/vi/${currentTrack.youtubeId}/mqdefault.jpg`}
                     alt={currentTrack.title}
@@ -342,35 +354,43 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                   />
                 </div>
                 {/* Centrally centered pin */}
-                <div className="absolute w-3 h-3 bg-neutral-900 rounded-full border border-neutral-800 z-20 flex justify-center items-center">
-                  <div className="w-1.5 h-1.5 bg-neutral-950 rounded-full" />
+                <div className={`absolute w-3 h-3 rounded-full border z-20 flex justify-center items-center ${
+                  isDark ? "bg-[#05070c] border-[#1d2745]" : "bg-[#f1f5f9] border-[#cbd5e1]"
+                }`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isDark ? "bg-cyan-400" : "bg-cyan-600"}`} />
                 </div>
               </div>
             </div>
 
             {/* Title & metadata info */}
             <div className="flex-1 text-center md:text-left min-w-0">
-              <span className="text-[10px] font-mono font-medium text-purple-400 bg-purple-500/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+              <span className={`text-[10px] font-mono font-bold border px-3 py-1 rounded-full uppercase tracking-wider ${
+                isDark 
+                  ? "text-cyan-400 bg-cyan-950/40 border-cyan-500/20" 
+                  : "text-cyan-700 bg-cyan-50 border-cyan-200"
+              }`}>
                 Now Grooving
               </span>
-              <h2 className="text-lg font-semibold text-neutral-100 truncate mt-2 leading-snug">
+              <h2 className={`text-lg font-bold truncate mt-3.5 leading-snug tracking-tight ${isDark ? "text-neutral-100" : "text-neutral-800"}`}>
                 {currentTrack.title}
               </h2>
-              <p className="text-sm text-neutral-400 font-light mt-0.5 truncate uppercase tracking-wide">
+              <p className={`text-xs font-bold mt-0.5 truncate uppercase tracking-widest font-mono ${isDark ? "text-[#8ea0d2]" : "text-indigo-600"}`}>
                 by {currentTrack.artist}
               </p>
-              <p className="text-[11px] text-neutral-500 font-mono mt-1.5 flex items-center justify-center md:justify-start gap-1">
+              <p className={`text-[10px] font-mono mt-2 flex items-center justify-center md:justify-start gap-1 ${isDark ? "text-[#4e5f8a]" : "text-[#5e77ad]"}`}>
                 <span>Introduced by:</span>
-                <span className="text-neutral-300 font-medium">{currentTrack.addedByName}</span>
+                <span className={`font-bold ${isDark ? "text-cyan-400/90" : "text-cyan-600"}`}>{currentTrack.addedByName}</span>
               </p>
             </div>
           </div>
 
           {/* Player controls dashboard */}
-          <div className="space-y-3 pt-3 border-t border-neutral-800/60">
+          <div className={`space-y-3 pt-4 border-t ${isDark ? "border-[#141b31]" : "border-[#e0ebf7]"}`}>
             {/* Slider with timeline controls */}
             <div className="space-y-1">
-              <div className="flex items-center justify-between text-[11px] font-mono text-neutral-500">
+              <div className={`flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-widest ${
+                isDark ? "text-cyan-500/80" : "text-cyan-600"
+              }`}>
                 <span>{formatTime(localTime)}</span>
                 <span>{formatTime(currentTrack.duration)}</span>
               </div>
@@ -381,7 +401,9 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                 disabled={!isDJ}
                 value={localTime}
                 onChange={handleTimelineChange}
-                className="w-full h-1 bg-neutral-800 accent-purple-500 rounded-lg cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed"
+                className={`w-full h-1.5 rounded-lg cursor-pointer disabled:opacity-80 disabled:cursor-not-allowed ${
+                  isDark ? "bg-[#141b31] accent-cyan-400" : "bg-[#e2e8f0] accent-cyan-600"
+                }`}
               />
             </div>
 
@@ -389,15 +411,29 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
             <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
               <div className="flex items-center gap-3">
                 {/* Lock-status warning icon indicator */}
-                <span className="text-[10px] font-mono font-semibold tracking-wider text-neutral-500 bg-neutral-950 px-3 py-1 rounded-full border border-neutral-800 flex items-center gap-1.5 uppercase">
-                  <span className={`w-2 h-2 rounded-full ${isHost ? "bg-purple-500" : isDJ ? "bg-emerald-500 animate-pulse" : "bg-neutral-600"}`} />
+                <span className={`text-[10px] font-mono font-bold tracking-widest border px-3 py-1.5 rounded-xl flex items-center gap-2 uppercase ${
+                  isDark 
+                    ? "text-[#8ea0d2] bg-[#05070c] border-[#1c2745]" 
+                    : "text-indigo-950 bg-[#f5f8fd] border-[#bfd3ec]"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    isHost 
+                      ? (isDark ? "bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.5)]" : "bg-cyan-600") 
+                      : isDJ 
+                      ? "bg-emerald-500 animate-pulse" 
+                      : (isDark ? "bg-[#4e5f8a]" : "bg-neutral-350")
+                  }`} />
                   {isHost ? "Host Active" : isDJ ? "DJ Link" : "Synced"}
                 </span>
 
                 {/* Show/Hide active video output frame */}
                 <button
                   onClick={() => setShowVideo(!showVideo)}
-                  className="p-1 px-2.5 bg-neutral-800 hover:bg-neutral-700/80 rounded-lg text-[10px] font-mono font-medium text-neutral-300 flex items-center gap-1.5 border border-neutral-700/40"
+                  className={`p-1 px-3 rounded-xl text-[10px] font-mono font-bold flex items-center gap-1.5 border cursor-pointer transition-all ${
+                    isDark 
+                      ? "bg-[#0b0f1d] hover:bg-[#121931]/80 text-[#8ea0d2] border-[#1c2744]" 
+                      : "bg-[#f5f8fd] hover:bg-neutral-100 text-indigo-700 border-[#bfd3ec] shadow-sm"
+                  }`}
                 >
                   {showVideo ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
                   {showVideo ? "Hide Frame" : "Show Frame"}
@@ -410,9 +446,9 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                 {isDJ ? (
                   <button
                     onClick={handleTogglePlay}
-                    className="w-10 h-10 bg-purple-600 hover:bg-purple-500 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105 active:scale-95 text-white"
+                    className="w-11 h-11 bg-gradient-to-tr from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 rounded-full flex items-center justify-center shadow-lg shadow-cyan-950/20 transition-all hover:scale-105 active:scale-95 text-white cursor-pointer"
                   >
-                    {playback.isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
+                    {playback.isPlaying ? <Pause className="w-5 h-5 fill-white text-white" /> : <Play className="w-5 h-5 fill-white text-white ml-0.5" />}
                   </button>
                 ) : null}
 
@@ -421,7 +457,11 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
                   <button
                     onClick={handleSkip}
                     title="Skip Current Track"
-                    className="w-10 h-10 bg-neutral-800 hover:bg-neutral-700 hover:text-white rounded-full flex items-center justify-center transition-colors text-neutral-300 border border-neutral-700/60 cursor-pointer"
+                    className={`w-11 h-11 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
+                      isDark 
+                        ? "bg-[#0b0f1d] hover:bg-[#121931] hover:text-cyan-300 border-[#1c2744] text-cyan-400" 
+                        : "bg-[#f5f8fd] hover:bg-neutral-100 hover:text-indigo-600 border-[#bfd3ec] text-indigo-600 shadow-sm"
+                    }`}
                   >
                     <SkipForward className="w-5 h-5 fill-current" />
                   </button>
@@ -429,15 +469,19 @@ export default function MiniPlayer({ room, userId, isHost, onSendWS }: MiniPlaye
               </div>
 
               {/* Speaker Volume bar (Local client only control) */}
-              <div className="flex items-center gap-2 bg-neutral-950 p-2 rounded-xl border border-neutral-800/60 w-36">
-                <Volume2 className="w-3.5 h-3.5 text-neutral-500" />
+              <div className={`flex items-center gap-2 p-2.5 rounded-xl border w-36 shadow-inner ${
+                isDark ? "bg-[#05070c] border-[#1c2745]" : "bg-[#f5f8fd] border-[#bfd3ec]"
+              }`}>
+                <Volume2 className={`w-3.5 h-3.5 ${isDark ? "text-[#4e5f8a]" : "text-[#7b92bf]"}`} />
                 <input
                   type="range"
                   min={0}
                   max={100}
                   value={volume}
                   onChange={(e) => setVolume(Number(e.target.value))}
-                  className="w-full h-1 bg-neutral-800 accent-neutral-400 rounded-lg cursor-pointer"
+                  className={`w-full h-1 rounded-lg cursor-pointer ${
+                    isDark ? "bg-[#141b31] accent-cyan-400" : "bg-[#e2e8f0] accent-indigo-500"
+                  }`}
                 />
               </div>
             </div>

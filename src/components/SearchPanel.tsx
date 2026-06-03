@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from "motion/react";
 
 interface SearchPanelProps {
   onAddTrack: (track: { title: string; artist: string; youtubeId: string; duration: number; thumbnail: string }) => void;
+  theme?: "dark" | "light";
 }
 
 type SearchMode = "search" | "url";
 
-export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
+export default function SearchPanel({ onAddTrack, theme }: SearchPanelProps) {
   const [mode, setMode] = useState<SearchMode>("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [directUrl, setDirectUrl] = useState("");
@@ -16,6 +17,8 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const isDark = theme !== "light";
 
   // Helper: Parses YouTube URL to extract Video ID
   const parseYoutubeId = (url: string): string | null => {
@@ -90,14 +93,24 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
   };
 
   return (
-    <div className="bg-neutral-900 border border-neutral-800 rounded-2xl flex flex-col p-5 font-sans relative">
+    <div className={`rounded-3xl flex flex-col p-5 font-sans relative transition-all duration-300 ${
+      isDark 
+        ? "bg-[#0c1122]/75 border border-[#1b2542] shadow-xl text-neutral-100" 
+        : "bg-white border border-[#cad9ef] shadow-xl shadow-[0_15px_35px_rgba(30,41,59,0.05)] text-neutral-800"
+    }`}>
       
       {/* Search Header tabs */}
-      <div className="flex border-b border-neutral-800 pb-3 gap-2">
+      <div className={`flex border-b pb-3 gap-2 ${isDark ? "border-[#1b2542]" : "border-[#e2e8f7]"}`}>
         <button
           onClick={() => { setMode("search"); setErrorMsg(""); }}
-          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-            mode === "search" ? "bg-neutral-800 text-neutral-100 font-bold" : "text-neutral-500 hover:text-neutral-300"
+          className={`flex-1 py-1.5 px-3 rounded-lg text-[10px] font-mono uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            mode === "search" 
+              ? (isDark 
+                ? "bg-[#141c30] border border-cyan-500/20 text-cyan-400 font-bold" 
+                : "bg-cyan-50 border border-[#bfd3ec] text-cyan-700 font-bold")
+              : (isDark 
+                ? "text-[#4e5f8a] hover:text-cyan-300" 
+                : "text-[#5e77ad] hover:text-cyan-700")
           }`}
         >
           <Search className="w-3.5 h-3.5" />
@@ -106,8 +119,14 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
 
         <button
           onClick={() => { setMode("url"); setErrorMsg(""); }}
-          className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-mono uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-            mode === "url" ? "bg-neutral-800 text-neutral-100 font-bold" : "text-neutral-500 hover:text-neutral-300"
+          className={`flex-1 py-1.5 px-3 rounded-lg text-[10px] font-mono uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            mode === "url" 
+              ? (isDark 
+                ? "bg-[#141c30] border border-cyan-500/20 text-cyan-400 font-bold" 
+                : "bg-cyan-50 border border-[#bfd3ec] text-cyan-700 font-bold")
+              : (isDark 
+                ? "text-[#4e5f8a] hover:text-cyan-300" 
+                : "text-[#5e77ad] hover:text-cyan-700")
           }`}
         >
           <Link className="w-3.5 h-3.5" />
@@ -118,7 +137,7 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
       {/* Pane Areas */}
       <div className="mt-4 flex-1">
         {errorMsg && (
-          <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[11px] px-3 animate-pulse py-2 rounded-xl mb-4 text-center">
+          <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[11px] px-3 animate-pulse py-2.5 rounded-xl mb-4 text-center font-mono">
             {errorMsg}
           </div>
         )}
@@ -133,12 +152,20 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search favorite songs, artists, live lofi..."
-                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                className={`flex-1 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
+                  isDark 
+                    ? "bg-[#05070c] border border-[#1e2947] text-neutral-200 placeholder-[#3e4f7a] focus:border-cyan-400 focus:ring-cyan-400" 
+                    : "bg-[#f5f8fd] border border-[#bfd3ec] text-neutral-900 placeholder-[#7a8da3] focus:border-indigo-500 focus:ring-indigo-500"
+                }`}
               />
               <button
                 type="submit"
                 disabled={isLoading}
-                className="bg-purple-600 hover:bg-purple-500 text-white p-2.5 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer text-xs font-medium"
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-colors disabled:opacity-40 cursor-pointer text-xs font-bold ${
+                  isDark
+                    ? "bg-cyan-500 hover:bg-cyan-400 text-[#0a101f]"
+                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                }`}
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
               </button>
@@ -150,30 +177,34 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
                 searchResults.map((item) => (
                   <div
                     key={item.youtubeId}
-                    className="flex items-center justify-between p-2.5 bg-neutral-950 rounded-xl border border-neutral-800/40"
+                    className={`flex items-center justify-between p-2.5 rounded-xl border transition-all ${
+                      isDark 
+                        ? "bg-[#05070c] border-[#141e35] hover:border-[#1e2947]" 
+                        : "bg-[#f8fafd] border-[#bfd3ec] hover:border-indigo-300/60"
+                    }`}
                   >
                     <div className="flex items-center gap-3 min-w-0 flex-1">
                       <img
                         src={item.thumbnail}
                         alt=""
                         referrerPolicy="no-referrer"
-                        className="w-12 h-9 object-cover rounded-md border border-neutral-800 shadow-sm shrink-0"
+                        className={`w-12 h-9 object-cover rounded-md border shadow-sm shrink-0 ${isDark ? "border-[#1b2542]" : "border-[#bfd3ec]"}`}
                       />
                       <div className="text-left min-w-0">
-                        <p className="text-xs text-neutral-300 font-semibold truncate">{item.title}</p>
-                        <p className="text-[10px] text-neutral-500 truncate mt-0.5">{item.artist}</p>
+                        <p className={`text-xs font-bold truncate pr-1 ${isDark ? "text-neutral-200" : "text-neutral-800"}`}>{item.title}</p>
+                        <p className={`text-[10px] truncate mt-0.5 ${isDark ? "text-[#4e5f8a]" : "text-[#5e77ad] font-medium"}`}>{item.artist}</p>
                       </div>
                     </div>
                     <button
                       onClick={() => onAddTrack(item)}
-                      className="p-1 px-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-[10px] font-sans font-medium flex items-center justify-center gap-1 transition-colors shrink-0 cursor-pointer"
+                      className="p-1 px-3 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white rounded-lg text-[10px] font-sans font-bold flex items-center justify-center gap-1 transition-colors shrink-0 cursor-pointer"
                     >
-                      <Plus className="w-3" /> Add
+                      <Plus className="w-3 text-white" /> Add
                     </button>
                   </div>
                 ))
               ) : searchQuery && !isLoading ? (
-                <p className="text-[11px] text-neutral-500 text-center py-6 font-mono">No YouTube streams located. Try another keyword string.</p>
+                <p className={`text-[11px] text-center py-6 font-mono font-bold ${isDark ? "text-[#4e5f8a]" : "text-[#5e77ad]"}`}>No YouTube streams located. Try another keyword string.</p>
               ) : null}
             </div>
           </div>
@@ -189,17 +220,25 @@ export default function SearchPanel({ onAddTrack }: SearchPanelProps) {
                 value={directUrl}
                 onChange={(e) => setDirectUrl(e.target.value)}
                 placeholder="Paste full YouTube Link or exact 11-char Video ID"
-                className="flex-1 bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-2.5 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                className={`flex-1 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${
+                  isDark 
+                    ? "bg-[#05070c] border border-[#1e2947] text-neutral-200 placeholder-[#3e4f7a] focus:border-cyan-400 focus:ring-cyan-400" 
+                    : "bg-[#f5f8fd] border border-[#bfd3ec] text-neutral-900 placeholder-[#7a8da3] focus:border-indigo-500 focus:ring-indigo-500"
+                }`}
               />
               <button
                 type="submit"
-                className="bg-purple-600 hover:bg-purple-500 text-white py-2.5 px-4 rounded-xl text-xs font-semibold shrink-0 flex items-center gap-1 transition-colors cursor-pointer"
+                className={`py-2.5 px-4 rounded-xl text-xs font-bold shrink-0 flex items-center gap-1 transition-colors cursor-pointer ${
+                  isDark
+                    ? "bg-cyan-500 hover:bg-cyan-400 text-[#0a101f]"
+                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
+                }`}
               >
                 <span>Add Track</span>
               </button>
             </div>
-            <p className="text-[10px] text-neutral-500 font-mono leading-relaxed pt-1 select-none">
-              💡 Supports standard links (e.g. <span className="text-neutral-400">https://www.youtube.com/watch?v=dQw4w9WgXcQ</span>) or simple shorts & watch ids (e.g. <span className="text-neutral-400">dQw4w9WgXcQ</span>).
+            <p className={`text-[10px] font-mono leading-relaxed pt-1 select-none font-bold ${isDark ? "text-[#4e5f8a]" : "text-[#5e77ad]"}`}>
+              💡 Supports standard links (e.g. <span className={isDark ? "text-cyan-400/80" : "text-cyan-600"}>https://www.youtube.com/watch?v=dQw4w9WgXcQ</span>) or simple shorts & watch ids (e.g. <span className={isDark ? "text-cyan-400/80" : "text-cyan-600"}>dQw4w9WgXcQ</span>).
             </p>
           </form>
         )}
